@@ -1,0 +1,11 @@
+# Secrets & local private values (never commit)
+.env
+.env.*
+!.env.example
+*.local.md
+.secrets/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
