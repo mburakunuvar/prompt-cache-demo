@@ -37,11 +37,11 @@ QUESTIONS = [
 ]
 
 
-def send_turn(client, question: str) -> tuple[int, int]:
+def send_turn(client, question: str, cache_key: str = PROMPT_CACHE_KEY) -> tuple[int, int]:
     response = client.responses.create(
         model=MODEL_DEPLOYMENT,
         input=f"{STABLE_PREFIX}\n\nUser question: {question}",
-        prompt_cache_key=PROMPT_CACHE_KEY,
+        prompt_cache_key=cache_key,
         prompt_cache_retention=PROMPT_CACHE_RETENTION,
     )
     return cache_stats(response)

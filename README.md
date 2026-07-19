@@ -103,14 +103,9 @@ times, then reports per-turn `input_tokens` / `cached_tokens`.
 
 **Date:** 2026-07-18 · **Result:** ✅ PASS — in-memory prompt caching confirmed.
 
-Configuration under test:
-
-| Setting | Value | Notes |
-| --- | --- | --- |
-| `prompt_cache_key` | `prompt-cache-demo` | Stable value reused on every request. |
-| `prompt_cache_retention` | `in_memory` | In-memory caching enabled. |
-| Extended (24h) retention | Not sent | Disabled (not offered for `gpt-5-mini`). |
-| `previous_response_id` | Not used | Each call sends the full, byte-identical prefix. |
+Configuration is the standing `prompt_cache_key` / `in_memory` retention described
+above, with `previous_response_id` unused so every call sends the full,
+byte-identical prefix.
 
 Results:
 
