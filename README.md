@@ -10,6 +10,8 @@ Responses API (`azure-ai-projects` → `get_openai_client()`).
 - [cache_test.py](cache_test.py) — automated check that a long, identical prompt
   prefix produces cache reads. Exit code `0` = PASS, `1` = FAIL, `2` = config
   error.
+- [prompt_cache_test.py](prompt_cache_test.py) — incident-response scenario that
+  reports a cache-hit ratio across ten reads after an excluded warm-up write.
 
 ## Deployment facts
 
@@ -58,6 +60,12 @@ Then edit `.env` and set `PROJECT_ENDPOINT` to your real Foundry project endpoin
 (the committed `.env.example` ships only with a `<placeholder>` template; the real
 value is in `SECRETS.local.md`).
 
+## Secrets and private values
+
+Keep the real project endpoint in `.env` and private resource identifiers in
+`SECRETS.local.md`. Both files are excluded by `.gitignore`; only the redacted
+deployment facts and placeholder `.env.example` belong in source control.
+
 ## Run the chat app
 
 ```powershell
@@ -82,13 +90,40 @@ python cache_test.py
 The test sends a fixed ~2,000-token prefix plus a short, varying question four
 times, then reports per-turn `input_tokens` / `cached_tokens`.
 
+Run the separate incident-response scenario with:
+
+```powershell
+python prompt_cache_test.py
+```
+
+This test uses a different stable prompt and cache key, sends one warm-up write
+followed by ten cache-read attempts, and reports the final ratio as
+`hits / post-warm-up attempts`. The warm-up write is not counted as a miss.
+
+## Run the rate tests
+
+The rate runners target 10, 15, and 25 requests per minute for approximately two
+minutes each:
+
+```powershell
+python rate_test_10.py
+python rate_test_15.py
+python rate_test_25.py
+```
+
+They use distinct cache keys and report achieved throughput as well as cache-hit
+ratios. See [tests-summary.md](tests-summary.md) for the verified results and the
+sequential-dispatch limitation.
+
 ## How prompt caching works
 
 - `cached_tokens` is only non-zero once at least **1,024 identical leading
   tokens** are reused; hits then extend in 128-token increments.
-- Every request sends `prompt_cache_key="prompt-cache-demo"` (stable routing) and
-  `prompt_cache_retention="in_memory"`. Extended (24h) retention is intentionally
-  **disabled** (and not offered for `gpt-5-mini`).
+- The chat app and baseline cache test send
+  `prompt_cache_key="prompt-cache-demo"`; the focused and rate tests use isolated
+  keys. All runners use `prompt_cache_retention="in_memory"` for stable routing.
+  Extended (24h) retention is intentionally **disabled** (and not offered for
+  `gpt-5-mini`).
 - After each response, `app.py` prints a line read from
   `response.usage.input_tokens_details.cached_tokens`:
 
@@ -126,11 +161,12 @@ PASS: 3 of 3 post-warmup turns served cached tokens.
 
 Reproduce with `az login` then `python cache_test.py`.
 
-
 ## Caveats & limits
 
 - The **in-memory cache expires** after 5–10 min of inactivity (and always within
   1 hour), so a re-run after a long gap shows `cached_tokens = 0` on turn 1 again.
 - A single character change in the prefix forces a cache miss.
-- Sending the same prefix + key above **~15 requests/min** may miss the cache.
+- The service documents that sending the same prefix and key above approximately
+  **15 requests/min** may miss the cache. The current sequential rate tests were
+  latency-bound near 11 requests/min, so they did not verify that boundary.
 - Caches are **not shared across Azure subscriptions**.

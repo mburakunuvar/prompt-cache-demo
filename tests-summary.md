@@ -23,6 +23,24 @@ varies) at a target rate for ~120s, with a distinct cache key per test, and read
 On every cache read, 1920 of ~2,021 input tokens were served from cache (the
 trailing question is never cached). No throttling (`429`/ERROR) occurred.
 
+## Focused prompt-cache-test
+
+The independent [prompt_cache_test.py](prompt_cache_test.py) scenario uses a
+different incident-response playbook prefix and the isolated cache key
+`prompt-cache-incident-response`. It is intentionally sequential and low-rate:
+this verifies repeated-prefix reuse rather than the requests-per-minute limit.
+
+**Run date:** 2026-07-19
+
+| Requests | Warm-up | Post-warm-up hits | Misses | Hit rate | Cached tokens per hit |
+| --- | --- | --- | --- | --- | --- |
+| 11 | `cached=0` (write) | 10/10 | 0 | **100.0%** | 3328 |
+
+The input measured 3,414–3,417 tokens depending on the trailing question, well
+above the 1,024-token caching threshold. The first request populated the cache;
+all ten later requests reused 3,328 leading tokens. The reported ratio excludes
+the warm-up write, so the verified result is **10/10 cache hits (100.0%)**.
+
 ## Key finding — tests were latency-bound, not rate-limited
 
 The **achieved** rate never exceeded ~11/min, even for the 15/min and 25/min
