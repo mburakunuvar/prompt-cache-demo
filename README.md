@@ -126,21 +126,6 @@ PASS: 3 of 3 post-warmup turns served cached tokens.
 
 Reproduce with `az login` then `python cache_test.py`.
 
-## Issues found & fixes
-
-| # | Symptom | Root cause | Fix |
-| --- | --- | --- | --- |
-| 1 | `getaddrinfo failed` / `APIConnectionError` | Endpoint host was `...ai.azure.com` (does not resolve) | Use `...services.ai.azure.com` in `.env` / `.env.example` |
-| 2 | `400 invalid_request_error` on `input[1]` | v1 endpoint rejected bare `{role, content}` list items | Send a single-string `input` (prefix first, question last) |
-
-## Troubleshooting
-
-- `PROJECT_ENDPOINT is not configured`: copy `.env.example` to `.env` and run
-  from this directory.
-- Authentication or authorization failure: run `az login`, select the correct
-  subscription, and confirm your identity has access to the Foundry project.
-- Deployment not found: confirm the deployment name is `gpt-5-mini` in your
-  Foundry project.
 
 ## Caveats & limits
 
@@ -149,20 +134,3 @@ Reproduce with `az login` then `python cache_test.py`.
 - A single character change in the prefix forces a cache miss.
 - Sending the same prefix + key above **~15 requests/min** may miss the cache.
 - Caches are **not shared across Azure subscriptions**.
-
-## Secrets and private values
-
-Private data is never committed. Committed files show `***` (or a `<placeholder>`);
-the real values live only in gitignored files:
-
-| Where | Contents | Committed? |
-| --- | --- | --- |
-| `.env` | `PROJECT_ENDPOINT` plus any runtime secrets/keys the app reads | No (gitignored) |
-| `SECRETS.local.md` | Human-readable identifiers (RG, account, project, endpoint) | No (gitignored) |
-| `.env.example` | Placeholder template only | Yes |
-
-To run locally: `Copy-Item .env.example .env`, then fill in the real values from
-`SECRETS.local.md`. Handle any future credential or key the same way — put the
-secret in `.env` (or `SECRETS.local.md`), keep a `<placeholder>` in `.env.example`,
-and reference it as `***` in committed docs. The `.gitignore` rules `.env.*`
-(except `.env.example`), `*.local.md`, and `.secrets/` keep these out of git.

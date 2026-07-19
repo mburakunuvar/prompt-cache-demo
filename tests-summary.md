@@ -1,7 +1,7 @@
 # Prompt-cache rate tests — results summary
 
 **Date:** 2026-07-19 · **Model:** `gpt-5-mini` · **Retention:** `in_memory`
-**Runners:** [rate_test_10.py](../rate_test_10.py), [rate_test_15.py](../rate_test_15.py), [rate_test_25.py](../rate_test_25.py) via [rate_test_common.py](../rate_test_common.py)
+**Runners:** [rate_test_10.py](rate_test_10.py), [rate_test_15.py](rate_test_15.py), [rate_test_25.py](rate_test_25.py) via [rate_test_common.py](rate_test_common.py)
 
 ## Statement under test
 
