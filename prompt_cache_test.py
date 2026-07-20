@@ -97,6 +97,16 @@ def run_test() -> int:
         f"({hit_rate:.1f}% hit rate, {misses} misses)."
     )
 
+    # Token-weighted cache ratio over all requests (warm-up included):
+    # SUM(cached_tokens) / SUM(input_tokens) * 100.
+    total_input = sum(input_tokens for input_tokens, _ in measurements)
+    total_cached = sum(cached_tokens for _, cached_tokens in measurements)
+    token_weighted = (total_cached / total_input * 100) if total_input else 0.0
+    print(
+        f"TOKEN-WEIGHTED: {total_cached}/{total_input} input tokens served from "
+        f"cache ({token_weighted:.1f}%)."
+    )
+
     if hits == 0:
         print(
             "FAIL: no cached tokens were served after the warm-up write.",

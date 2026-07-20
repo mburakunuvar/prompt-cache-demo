@@ -139,6 +139,12 @@ def _report(results: list[dict], rpm: int, label: str) -> int:
     misses = sum(1 for r in post_warmup if not r["hit"])
     hit_rate = (hits / len(post_warmup) * 100) if post_warmup else 0.0
 
+    # Token-weighted cache ratio over all successful requests (warm-up included):
+    # SUM(cached_tokens) / SUM(input_tokens) * 100.
+    total_input = sum(r["input_tokens"] for r in successful)
+    total_cached = sum(r["cached"] for r in successful)
+    token_weighted = (total_cached / total_input * 100) if total_input else 0.0
+
     print(f"[{label}] Summary")
     print(f"  target rate        : {rpm} req/min")
     print(f"  achieved rate      : {achieved:.1f} req/min")
@@ -147,6 +153,10 @@ def _report(results: list[dict], rpm: int, label: str) -> int:
     print(
         f"  post-warm-up hits  : {hits}/{len(post_warmup)} "
         f"(misses: {misses}, hit rate: {hit_rate:.1f}%)"
+    )
+    print(
+        f"  token-weighted     : {total_cached}/{total_input} input tokens cached "
+        f"({token_weighted:.1f}%)"
     )
 
     print("  per-minute breakdown (sent / hit / miss / err):")
