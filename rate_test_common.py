@@ -2,8 +2,9 @@
 
 Drives the fixed ~2,000-token prefix from ``cache_test`` at a target request
 rate for a fixed duration, records per-request ``cached_tokens``, and reports
-hit/miss rates. Used by ``rate_test_10`` / ``rate_test_15`` / ``rate_test_25`` to
-probe the documented "~15 requests/min per prefix + prompt_cache_key" limit.
+request-level and token-weighted cache ratios. Used by ``rate_test_10`` /
+``rate_test_15`` / ``rate_test_25`` to probe the documented "~15 requests/min
+per prefix + prompt_cache_key" limit.
 """
 
 import time
@@ -43,7 +44,7 @@ def run_rate_test(rpm: int, duration_seconds: int, cache_key: str, label: str) -
     Returns 0 when the run produced usable measurements, 1 when it could not
     (no successful requests, or the prefix was too small to ever cache). The
     presence or absence of misses is reported, not asserted, since it depends on
-    live service behaviour.
+    live service behavior.
     """
     interval = 60.0 / rpm
     client = create_openai_client(get_project_endpoint())

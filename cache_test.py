@@ -80,7 +80,7 @@ def run_test() -> int:
 
     if hits_after_warmup:
         print(
-            f"\nPASS: {hits_after_warmup} of {len(QUESTIONS) - 1} post-warmup turns "
+            f"\nPASS: {hits_after_warmup} of {len(QUESTIONS) - 1} post-warm-up turns "
             "served cached tokens. In-memory prompt caching is working."
         )
         return 0

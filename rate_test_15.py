@@ -1,4 +1,4 @@
-"""test2 - prompt-cache hit rate at 15 requests/min (at the ~15/min boundary)."""
+"""test2 - prompt-cache metrics at 15 requests/min (at the ~15/min boundary)."""
 
 from app import run_cli
 from rate_test_common import run_rate_test

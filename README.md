@@ -11,12 +11,12 @@ Responses API (`azure-ai-projects` → `get_openai_client()`).
   prefix produces cache reads. Exit code `0` = PASS, `1` = FAIL, `2` = config
   error.
 - [prompt_cache_test.py](prompt_cache_test.py) — incident-response scenario that
-  reports a cache-hit ratio across ten reads after an excluded warm-up write.
+  reports request-level and token-weighted cache ratios across one warm-up write
+  and ten read attempts.
 
 ## Deployment facts
 
-Private identifiers are redacted below. The real values live only in gitignored
-files — `.env` (endpoint) and `SECRETS.local.md` (all identifiers). See
+Private identifiers are redacted below; local configuration is covered in
 [Secrets and private values](#secrets-and-private-values).
 
 | Item | Value |
@@ -97,8 +97,9 @@ python prompt_cache_test.py
 ```
 
 This test uses a different stable prompt and cache key, sends one warm-up write
-followed by ten cache-read attempts, and reports the final ratio as
-`hits / post-warm-up attempts`. The warm-up write is not counted as a miss.
+followed by ten cache-read attempts, and reports both metrics used by the rate
+tests. The request-level ratio excludes the warm-up; the token-weighted ratio
+includes all successful requests.
 
 ## Run the rate tests
 
@@ -111,8 +112,10 @@ python rate_test_15.py
 python rate_test_25.py
 ```
 
-They use distinct cache keys and report achieved throughput as well as cache-hit
-ratios. See [tests-summary.md](tests-summary.md) for the verified results and the
+They use distinct cache keys and report achieved throughput, a request-level
+cache-hit ratio, and a token-weighted cache ratio
+(`SUM(cached_tokens) / SUM(input_tokens)`). See
+[tests-summary.md](tests-summary.md) for the verified results and the
 sequential-dispatch limitation.
 
 ## How prompt caching works
@@ -142,7 +145,7 @@ Configuration is the standing `prompt_cache_key` / `in_memory` retention describ
 above, with `previous_response_id` unused so every call sends the full,
 byte-identical prefix.
 
-Results:
+Measured token usage:
 
 ```text
 turn  input_tokens  cached_tokens  hit?
@@ -152,12 +155,11 @@ turn  input_tokens  cached_tokens  hit?
 3     2020          1920           yes
 4     2021          1920           yes
 ----------------------------------------
-PASS: 3 of 3 post-warmup turns served cached tokens.
+PASS: 3 of 3 post-warm-up turns served cached tokens.
 ```
 
-- **Turn 1** is a cache **write** (fresh prefix, `cached_tokens = 0`).
-- **Turns 2–4** are cache **reads** (`1920` of ~2,021 input tokens served from
-  cache; the trailing question is not cached).
+Turn 1 populated the cache; turns 2–4 reused 1,920 of ~2,021 input tokens. The
+varying trailing question was not cached.
 
 Reproduce with `az login` then `python cache_test.py`.
 
@@ -168,5 +170,5 @@ Reproduce with `az login` then `python cache_test.py`.
 - A single character change in the prefix forces a cache miss.
 - The service documents that sending the same prefix and key above approximately
   **15 requests/min** may miss the cache. The current sequential rate tests were
-  latency-bound near 11 requests/min, so they did not verify that boundary.
+  latency-bound at about 10 requests/min, so they did not verify that boundary.
 - Caches are **not shared across Azure subscriptions**.
