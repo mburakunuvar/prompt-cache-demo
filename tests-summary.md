@@ -1,16 +1,40 @@
-# Prompt-cache rate tests — results summary
+# Prompt-cache tests — results summary
 
-**Date:** 2026-07-20 · **Model:** `gpt-5-mini` · **Retention:** `in_memory`
-**Runners:** [rate_test_10.py](rate_test_10.py), [rate_test_15.py](rate_test_15.py), [rate_test_25.py](rate_test_25.py) via [rate_test_common.py](rate_test_common.py)
+**Model:** `gpt-5-mini` · **Retention:** `in_memory`
 
-## Statement under test
+**Verified runs:** baseline 2026-07-18; focused and rate tests 2026-07-20
 
-> If requests for the same prefix and `prompt_cache_key` combination exceed
-> approximately 15 requests per minute, some requests might miss the cache.
+## Baseline cache test
+
+The [baseline runner](cache_test.py) sends a fixed ~2,000-token prefix followed
+by four different Azure service questions. It uses the cache key
+`prompt-cache-demo`; `previous_response_id` is unused, so each request includes
+the complete stable prefix.
+
+| Turn | Input tokens | Cached tokens | Result |
+| --- | --- | --- | --- |
+| 1 | 2021 | 0 | Warm-up write |
+| 2 | 2021 | 1920 | Hit |
+| 3 | 2020 | 1920 | Hit |
+| 4 | 2021 | 1920 | Hit |
+
+Result: **3/3 post-warm-up cache hits**. Each hit reused 1,920 leading tokens;
+the varying question suffix was not part of the cached tokens observed in this
+run.
+
+## Rate-test statement under test
+
+> [Microsoft Learn](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching)
+> notes that if requests for the same prefix and `prompt_cache_key` combination
+> exceed approximately 15 requests per minute, some requests might miss the
+> cache.
 
 Each test drives the fixed ~2,021-token prefix (only the trailing question
 varies) at a target rate for ~120s, with a distinct cache key per test, and reads
-`response.usage.input_tokens_details.cached_tokens` per request.
+`response.usage.input_tokens_details.cached_tokens` per request. The runners are
+[rate_test_10.py](rate_test_10.py), [rate_test_15.py](rate_test_15.py), and
+[rate_test_25.py](rate_test_25.py), all using the sequential harness in
+[rate_test_common.py](rate_test_common.py).
 
 ## Consolidated results
 
@@ -20,8 +44,9 @@ varies) at a target rate for ~120s, with a distinct cache key per test, and read
 | test2 | 15/min | **9.6/min** | 20 | `cached=0` (write) | 18/19 | 1 | **94.7%** | **85.5%** | 0 |
 | test3 | 25/min | **10.2/min** | 21 | `cached=0` (write) | 20/20 | 0 | **100.0%** | **90.5%** | 0 |
 
-On every cache read, 1,920 of ~2,021 input tokens were served from cache (the
-trailing question is never cached). No throttling (`429`/ERROR) occurred.
+On every observed cache read, 1,920 of ~2,021 input tokens were served from
+cache; the trailing question was not part of the cached tokens in these runs.
+No request errors or throttling occurred.
 
 **Hit rate** is request-level: the share of post-warm-up requests that read *any*
 cached tokens. **Token-weighted** is `SUM(cached_tokens) / SUM(input_tokens) ×

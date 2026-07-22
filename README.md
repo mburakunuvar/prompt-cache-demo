@@ -13,6 +13,32 @@ Responses API (`azure-ai-projects` → `get_openai_client()`).
 - [prompt_cache_test.py](prompt_cache_test.py) — incident-response scenario that
   reports request-level and token-weighted cache ratios across one warm-up write
   and ten read attempts.
+- [rate_test_common.py](rate_test_common.py) — shared sequential harness for the
+  10, 15, and 25 requests/minute rate-test runners.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    ENV[".env: PROJECT_ENDPOINT"] --> APP["app.py<br/>configuration, authentication, client"]
+    APP --> FOUNDRY["Microsoft Foundry<br/>Responses API"]
+
+    CHAT["Interactive chat"] --> APP
+    BASE["cache_test.py<br/>baseline verification"] --> APP
+    FOCUSED["prompt_cache_test.py<br/>incident scenario"] --> APP
+
+    R10["rate_test_10.py"] --> RATE["rate_test_common.py"]
+    R15["rate_test_15.py"] --> RATE
+    R25["rate_test_25.py"] --> RATE
+    RATE --> BASE
+    RATE --> APP
+
+    FOUNDRY --> USAGE["input_tokens_details.cached_tokens"]
+    USAGE --> CHAT
+    USAGE --> BASE
+    USAGE --> FOCUSED
+    USAGE --> RATE
+```
 
 ## Deployment facts
 
@@ -125,8 +151,8 @@ sequential-dispatch limitation.
 - The chat app and baseline cache test send
   `prompt_cache_key="prompt-cache-demo"`; the focused and rate tests use isolated
   keys. All runners use `prompt_cache_retention="in_memory"` for stable routing.
-  Extended (24h) retention is intentionally **disabled** (and not offered for
-  `gpt-5-mini`).
+  Extended (24h) retention is intentionally **disabled** and is not listed as
+  supported for `gpt-5-mini`.
 - After each response, `app.py` prints a line read from
   `response.usage.input_tokens_details.cached_tokens`:
 
@@ -137,38 +163,30 @@ sequential-dispatch limitation.
 - In the interactive app, short prompts show `[cache] 0/<n>` on early turns; hits
   appear once the accumulated conversation prefix grows past ~1,024 tokens.
 
-## Verified test report
+## Verified results
 
-**Date:** 2026-07-18 · **Result:** ✅ PASS — in-memory prompt caching confirmed.
+In-memory prompt caching was verified with the current runners:
 
-Configuration is the standing `prompt_cache_key` / `in_memory` retention described
-above, with `previous_response_id` unused so every call sends the full,
-byte-identical prefix.
+- Baseline (2026-07-18): 3/3 post-warm-up requests served 1,920 cached
+  tokens from inputs of approximately 2,021 tokens.
+- Incident scenario (2026-07-20): 10/10 post-warm-up requests were cache hits;
+  88.6% of all input tokens, including the warm-up write, came from cache.
+- Rate tests (2026-07-20): target rates were 10, 15, and 25 requests/minute,
+  but sequential dispatch achieved only 9.6–10.2 requests/minute. Behavior above
+  approximately 15 requests/minute therefore remains unverified.
 
-Measured token usage:
-
-```text
-turn  input_tokens  cached_tokens  hit?
-----------------------------------------
-1     2021          0              no
-2     2021          1920           yes
-3     2020          1920           yes
-4     2021          1920           yes
-----------------------------------------
-PASS: 3 of 3 post-warm-up turns served cached tokens.
-```
-
-Turn 1 populated the cache; turns 2–4 reused 1,920 of ~2,021 input tokens. The
-varying trailing question was not cached.
-
-Reproduce with `az login` then `python cache_test.py`.
+See [tests-summary.md](tests-summary.md) for the methodology, complete
+measurements, metric definitions, and limitations. Reproduce the baseline with
+`az login` followed by `python cache_test.py`.
 
 ## Caveats & limits
 
 - The **in-memory cache expires** after 5–10 min of inactivity (and always within
   1 hour), so a re-run after a long gap shows `cached_tokens = 0` on turn 1 again.
-- A single character change in the prefix forces a cache miss.
-- The service documents that sending the same prefix and key above approximately
-  **15 requests/min** may miss the cache. The current sequential rate tests were
-  latency-bound at about 10 requests/min, so they did not verify that boundary.
+- A change within the identical cached prefix can force a cache miss.
+- [Microsoft Learn](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching)
+  notes that some requests might miss the cache when the same prefix and
+  `prompt_cache_key` exceed approximately **15 requests/min**. The current
+  sequential rate tests were latency-bound at about 10 requests/min, so they did
+  not verify that boundary.
 - Caches are **not shared across Azure subscriptions**.
